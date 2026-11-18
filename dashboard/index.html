@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modbus Monitor Dashboard</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --text-color: #333;
+      --card-bg: #fff;
+      --accent-color: #4caf50;
+      --header-bg: #2e7d32;
+      --input-border: #ccc;
+    }
+
+    body.dark-mode {
+      --bg-color: #1e1e1e;
+      --text-color: #f0f0f0;
+      --card-bg: #2b2b2b;
+      --accent-color: #66bb6a;
+      --header-bg: #388e3c;
+      --input-border: #555;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    
+
+    header {
+      background-color: var(--header-bg);
+      color: #fff;
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+
+    .top-controls {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .dark-toggle,
+    .logout-button,
+    .theme-select {
+      background: none;
+      border: 2px solid #fff;
+      color: #E1D9D1;
+      border-radius: 20px;
+      padding: 0.3rem 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    input, button, select {
+      padding: 0.75rem 1rem;
+      margin-top: 1rem;
+      width: 100%;
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      font-size: 1rem;
+      background-color: var(--card-bg);
+      color: var(--text-color);
+      transition: 0.3s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent-color);
+      outline: none;
+    }
+
+    button {
+      background-color: var(--accent-color);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+
+    button:hover {
+      background-color: #43a047;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    th, td {
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+
+    th {
+      background-color: var(--accent-color);
+      color: white;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 400px;
+      margin-top: 2rem;
+    }
+
+    #login {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #dashboard {
+      display: none;
+    }
+
+    #dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    @media (max-width: 600px) {
+  .card {
+    padding: 1rem;
+  }
+
+  header {
+    font-size: 1.3rem;
+    padding: 2rem 1rem 4.5rem; /* give more bottom padding for buttons */
+  }
+
+  .top-controls {
+    position: static;
+    margin-top: 1rem;
+    justify-content: center;
+  }
+
+  .theme-select,
+  .logout-button {
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.6rem;
+  }
+}
+
+  </style>
+</head>
+<body>
+
+<header>
+  Industrial Monitor System
+  <div class="top-controls">
+    <select class="theme-select" onchange="changeThemeMode(this.value)">
+      <option value="light">☀️ Light Mode</option>
+      <option value="dark">🌙 Dark Mode</option>
+    </select>
+    <button class="logout-button" onclick="logout()">🚪 Logout</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Login Section -->
+  <div id="login" class="card">
+    <h2>🔐 Login</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="loginError" style="color:red; margin-top: 1rem;"></p>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div id="dashboard">
+    <div class="card">
+      <div id="dashboard-header">
+        <h2>📋 Modbus Register Table</h2>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Register</th><th>Value</th></tr>
+        </thead>
+        <tbody id="registerTable">
+          <tr><td>register0</td><td id="register0">--</td></tr>
+          <tr><td>register1</td><td id="register1">--</td></tr>
+          <tr><td>register2</td><td id="register2">--</td></tr>
+          <tr><td>register3</td><td id="register3">--</td></tr>
+          <tr><td>register4</td><td id="register4">--</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>📈 Select Register to View Chart</h3>
+      <select id="registerSelect">
+        <option value="0">Register 0</option>
+        <option value="1">Register 1</option>
+        <option value="2">Register 2</option>
+        <option value="3">Register 3</option>
+        <option value="4">Register 4</option>
+      </select>
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAj6TWqUXTcUbVtnIs_Fg81FmwgwowayLg",
+    authDomain: "monitorplc-7cc0a.firebaseapp.com",
+    databaseURL: "https://monitorplc-7cc0a-default-rtdb.firebaseio.com",
+    projectId: "monitorplc-7cc0a",
+    storageBucket: "monitorplc-7cc0a.appspot.com",
+    messagingSenderId: "716496241839",
+    appId: "1:716496241839:web:7ad321390316144b5c5ad6"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const modbusRef = db.ref("modbus");
+
+  const ctx = document.getElementById("chart").getContext("2d");
+  let currentRegister = 0;
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Value',
+        data: [],
+        borderColor: '#4CAF50',
+        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  document.getElementById("registerSelect").addEventListener("change", (e) => {
+    currentRegister = parseInt(e.target.value);
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update();
+  });
+
+  function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        listenForData();
+      })
+      .catch(err => {
+        document.getElementById("loginError").innerText = err.message;
+      });
+  }
+
+  function logout() {
+    auth.signOut().then(() => {
+      document.getElementById("login").style.display = "flex";
+      document.getElementById("dashboard").style.display = "none";
+    });
+  }
+
+  function listenForData() {
+    modbusRef.on("value", (snapshot) => {
+      const data = snapshot.val();
+      const now = new Date().toLocaleTimeString();
+
+      for (let i = 0; i < 5; i++) {
+        const val = data["register" + i] ?? "--";
+        document.getElementById("register" + i).innerText = val;
+        if (i === currentRegister && typeof val === "number") {
+          chart.data.labels.push(now);
+          chart.data.datasets[0].data.push(val);
+          if (chart.data.labels.length > 15) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+          }
+          chart.update();
+        }
+      }
+    });
+  }
+
+  function changeThemeMode(mode) {
+    if (mode === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }
+</script>
+
+</body>
+</html>
