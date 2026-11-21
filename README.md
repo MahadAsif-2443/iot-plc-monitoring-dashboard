@@ -4,6 +4,10 @@ A portfolio-ready source-code snapshot of an Industrial IoT monitoring project. 
 
 > **Project status:** This repository is a cleaned source-code snapshot. The original hardware setup is not currently connected, so this package has not been re-tested on a live PLC or Firebase project.
 
+## Project Demo
+
+[Watch Project Demo](demo/demo_project.mp4)
+
 ## Architecture
 
 `PLC (Modbus RTU) -> ESP32 -> Firebase Realtime Database -> Web dashboard`
